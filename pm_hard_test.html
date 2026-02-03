@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardcore PM Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        
+        .cyberpunk-border {
+            border: 1px solid #3b82f6;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        }
+        
+        .option:hover {
+            background-color: #1e293b;
+            transform: translateX(5px);
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-2xl bg-slate-800 rounded-xl cyberpunk-border p-8 fade-in">
+        <div id="quiz-container">
+            <!-- Контент теста будет сгенерирован JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        const questions = [
+            {
+                question: "Какой артефакт Scrum содержит упорядоченный список требований к продукту?",
+                options: ["Sprint Backlog", "Product Backlog", "Increment", "Burndown Chart"],
+                answer: 1
+            },
+            {
+                question: "В какой методологии жёстко фиксированы этапы проекта до его начала?",
+                options: ["Scrum", "Kanban", "Waterfall", "Lean"],
+                answer: 2
+            },
+            {
+                question: "Что из перечисленного НЕ является событием в Scrum?",
+                options: ["Sprint Planning", "Daily Standup", "Backlog Refinement", "Risk Mitigation Meeting"],
+                answer: 3
+            },
+            {
+                question: "Какой инструмент Kanban помогает ограничить количество работы в процессе?",
+                options: ["Канбан-доска", "WIP-лимиты", "Свимлейн", "Классы обслуживания"],
+                answer: 1
+            },
+            {
+                question: "Что означает принцип 'Fail Fast' в Agile?",
+                options: ["Быстро завершать неудачные проекты", "Быстро выявлять и исправлять ошибки", "Быстро увольнять неэффективных сотрудников", "Быстро переключаться между проектами"],
+                answer: 1
+            },
+            {
+                question: "Какой тип риска невозможно предвидеть?",
+                options: ["Известные риски", "Предсказуемые риски", "Неизвестные риски", "Все риски можно предвидеть"],
+                answer: 2
+            },
+            {
+                question: "Что из перечисленного НЕ является техникой управления конфликтами?",
+                options: ["Уклонение", "Сглаживание", "Принуждение", "Микро-менеджмент"],
+                answer: 3
+            },
+            {
+                question: "Какой показатель НЕ используется в Earned Value Management?",
+                options: ["PV (Planned Value)", "EV (Earned Value)", "AV (Actual Value)", "AC (Actual Cost)"],
+                answer: 2
+            },
+            {
+                question: "Что означает 'DEEP' в контексте Product Backlog?",
+                options: ["Detailed, Estimated, Emergent, Prioritized", "Detailed, Emergent, Estimated, Product", "Detailed, Emergent, Estimated, Prioritized", "Detailed, Emergent, Evolving, Prioritized"],
+                answer: 2
+            },
+            {
+                question: "Какой подход лучше всего подходит для высоко-неопределённых проектов?",
+                options: ["Waterfall", "Agile", "Hybrid", "PRINCE2"],
+                answer: 1
+            }
+        ];
+
+        let currentQuestion = 0;
+        let score = 0;
+        const quizContainer = document.getElementById('quiz-container');
+
+        function showQuestion() {
+            if (currentQuestion >= questions.length) {
+                showResults();
+                return;
+            }
+
+            const question = questions[currentQuestion];
+            quizContainer.innerHTML = `
+                <h1 class="text-2xl font-bold text-blue-400 mb-2">Hardcore PM Test</h1>
+                <div class="h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mb-6"></div>
+                
+                <h2 class="text-xl font-semibold mb-6">${question.question}</h2>
+                
+                <div class="space-y-4 mb-8">
+                    ${question.options.map((option, index) => `
+                        <div class="option p-4 bg-slate-700 rounded-lg cursor-pointer transition-all" 
+                             onclick="selectOption(${index})">
+                            ${option}
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <button id="next-btn" class="btn-primary py-3 px-6 rounded-lg font-medium opacity-50 cursor-not-allowed" disabled>
+                    ${currentQuestion === questions.length - 1 ? 'Завершить тест' : 'Далее →'}
+                </button>
+                
+                <div class="mt-4 text-slate-400">
+                    Вопрос ${currentQuestion + 1} из ${questions.length}
+                </div>
+            `;
+        }
+
+        function selectOption(selectedIndex) {
+            const options = document.querySelectorAll('.option');
+            const nextBtn = document.getElementById('next-btn');
+            
+            options.forEach((option, index) => {
+                if (index === questions[currentQuestion].answer) {
+                    option.classList.add('bg-green-900');
+                } else if (index === selectedIndex && index !== questions[currentQuestion].answer) {
+                    option.classList.add('bg-red-900');
+                }
+                option.style.cursor = 'default';
+                option.onclick = null;
+            });
+            
+            if (selectedIndex === questions[currentQuestion].answer) {
+                score++;
+            }
+            
+            nextBtn.disabled = false;
+            nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            nextBtn.onclick = nextQuestion;
+        }
+
+        function nextQuestion() {
+            currentQuestion++;
+            showQuestion();
+        }
+
+        function showResults() {
+            let verdict = '';
+            if (score <= 3) {
+                verdict = 'Back to internship';
+            } else if (score <= 6) {
+                verdict = 'Junior PM';
+            } else if (score <= 8) {
+                verdict = 'Middle PM';
+            } else {
+                verdict = 'Senior PM';
+            }
+            
+            quizContainer.innerHTML = `
+                <h1 class="text-2xl font-bold text-blue-400 mb-2">Результаты теста</h1>
+                <div class="h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mb-6"></div>
+                
+                <div class="text-center py-8">
+                    <div class="text-5xl font-bold mb-2">${score}/${questions.length}</div>
+                    <div class="text-xl font-semibold mb-6">${verdict}</div>
+                    
+                    <div class="w-full bg-slate-700 rounded-full h-4 mb-8">
+                        <div class="bg-gradient-to-r from-blue-500 to-purple-500 h-4 rounded-full" 
+                             style="width: ${(score / questions.length) * 100}%"></div>
+                    </div>
+                    
+                    <button onclick="location.reload()" class="btn-primary py-3 px-6 rounded-lg font-medium">
+                        Пройти тест снова
+                    </button>
+                </div>
+            `;
+        }
+
+        // Запускаем тест
+        showQuestion();
+    </script>
+</body>
+</html>
