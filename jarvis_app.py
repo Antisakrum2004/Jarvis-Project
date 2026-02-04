@@ -121,27 +121,53 @@ class JarvisGUI(ctk.CTk):
     def get_bot_response(self, user_text):
         self.after(0, lambda: self.toggle_thinking(True))
 
-        # Добавляем скрытую инструкцию для краткости
-        prompt = f"Действуй максимально кратко. Если я прошу создать проект, используй настройки по умолчанию. {user_text}"
+        # --- ФИЧА №9: ЛОКАЛЬНЫЙ ПОИСК ---
+        if "найди файл" in user_text.lower() or "поиск файла" in user_text.lower():
+            filename = user_text.lower().replace("найди файл", "").replace("поиск файла", "").strip()
+            self.append_chat("JARVIS", f"Запускаю поиск файла: {filename}...")
 
+            def search():
+                results = []
+                # Ищем в основных папках пользователя, чтобы не сканировать весь диск С полгода
+                search_paths = [
+                    os.path.join(os.path.expanduser("~"), "Downloads"),
+                    os.path.join(os.path.expanduser("~"), "Documents"),
+                    os.path.join(os.path.expanduser("~"), "Desktop")
+                ]
+                for path in search_paths:
+                    for root, dirs, files in os.walk(path):
+                        for file in files:
+                            if filename in file.lower():
+                                results.append(os.path.join(root, file))
+
+                if results:
+                    res_str = "\n".join(results[:5])  # Показываем первые 5 находок
+                    self.after(0, lambda: self.append_chat("JARVIS", f"Вот что я нашел:\n{res_str}"))
+                else:
+                    self.after(0, lambda: self.append_chat("JARVIS", "Файл не найден, Андрей."))
+                self.after(0, lambda: self.toggle_thinking(False))
+
+            threading.Thread(target=search, daemon=True).start()
+            return
+        # --- КОНЕЦ ФИЧИ №9 ---
+
+        # Дальше идет обычный вызов nanobot...
         try:
             env = os.environ.copy()
             env["PYTHONIOENCODING"] = "utf-8"
             process = subprocess.Popen(
-                f'nanobot agent -m "{prompt}"',
+                f'nanobot agent -m "{user_text}"',
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 shell=True, cwd=self.working_dir, text=True,
                 encoding='utf-8', errors='replace', env=env,
                 creationflags=0x08000000
             )
             for line in iter(process.stdout.readline, ''):
-                line_clean = line.strip()
-                if not line_clean: continue
-                # Фильтруем системный мусор
-                if any(x in line_clean for x in ["DEBUG", "INFO", "Executing tool", "[3"]):
+                l_clean = line.strip()
+                if not l_clean or any(x in l_clean for x in
+                                      ["DEBUG", "INFO", "Executing tool", "[3", "Traceback", "File \"", "ValueError"]):
                     continue
-
-                self.after(0, lambda l=line_clean: self.append_chat("JARVIS", l))
+                self.after(0, lambda l=l_clean: self.append_chat("JARVIS", l))
             process.wait()
         finally:
             self.after(0, lambda: self.toggle_thinking(False))
