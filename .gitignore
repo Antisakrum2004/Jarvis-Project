@@ -1,4 +1,5 @@
 config.json
 jarvis_log.txt
+screenshots/
 __pycache__/
-.env
+.idea/
