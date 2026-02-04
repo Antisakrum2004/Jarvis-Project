@@ -13,7 +13,7 @@ class JarvisGUI(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.user_name = "АНДРЕЙ"
-        self.title(f"JARVIS v4.2 | {self.user_name} WORKSTATION")
+        self.title(f"JARVIS v4.3 | {self.user_name} WORKSTATION")
         self.geometry("1000x950")
         ctk.set_appearance_mode("dark")
 
@@ -23,8 +23,6 @@ class JarvisGUI(ctk.CTk):
         self.spinner_idx = 0
 
         self.setup_ui()
-
-        # Системный монитор в фоне
         threading.Thread(target=self.update_system_stats, daemon=True).start()
 
     def update_system_stats(self):
@@ -33,7 +31,7 @@ class JarvisGUI(ctk.CTk):
                 cpu = psutil.cpu_percent()
                 ram = psutil.virtual_memory().percent
                 self.after(0, lambda c=cpu, r=ram: self.title(
-                    f"JARVIS v4.2 | CPU: {c}% | RAM: {r}% | {self.user_name}"
+                    f"JARVIS v4.3 | CPU: {c}% | RAM: {r}% | {self.user_name}"
                 ))
             except:
                 pass
@@ -50,29 +48,30 @@ class JarvisGUI(ctk.CTk):
         self.spinner_label = ctk.CTkLabel(self.top_frame, text="", font=("Arial", 20), text_color="#FFD700")
         self.spinner_label.pack(side="left", padx=10)
 
-        # Кнопки управления
         ctk.CTkButton(self.top_frame, text="SYNC", command=self.git_sync, fg_color="#2ecc71", width=80).pack(
             side="right", padx=5)
         ctk.CTkButton(self.top_frame, text="SCAN", command=self.take_screenshot, fg_color="#e67e22", width=80).pack(
             side="right", padx=5)
 
-        # ЧАТ с восстановленным копированием
+        # ЧАТ
         self.chat_display = ctk.CTkTextbox(self, width=960, height=700, wrap="word", font=("Consolas", 15))
         self.chat_display.pack(pady=10, padx=20)
         self.chat_display._textbox.tag_config("jarvis_tag", foreground="#FFD700")
         self.chat_display._textbox.tag_config("user_tag", foreground="#3498db")
 
-        # Привязываем контекстное меню (правая кнопка мыши)
         self.chat_display.bind("<Button-3>", self.show_context_menu)
         self.chat_display.configure(state="disabled")
 
-        # ВВОД
-        self.user_input = ctk.CTkEntry(self, placeholder_text=f"Слушаю, Андрей...", height=50)
+        # ВВОД (Исправлена вставка текста)
+        self.user_input = ctk.CTkEntry(self, placeholder_text=f"Командуй, Андрей...", height=50)
         self.user_input.pack(pady=20, padx=20, fill="x")
+
+        # Явное разрешение стандартных горячих клавиш (Ctrl+V и т.д.)
+        self.user_input.bind("<Control-v>", lambda e: self.user_input.event_generate("<<Paste>>"))
+        self.user_input.bind("<Control-c>", lambda e: self.user_input.event_generate("<<Copy>>"))
         self.user_input.bind("<Return>", lambda e: self.send_message())
 
     def show_context_menu(self, event):
-        """Меню копирования"""
         menu = tk.Menu(self, tearoff=0)
         menu.add_command(label="Копировать всё", command=self.copy_all)
         menu.post(event.x_root, event.y_root)
@@ -99,9 +98,8 @@ class JarvisGUI(ctk.CTk):
 
         def run():
             msg = f"Update {datetime.now().strftime('%H:%M:%S')}"
-            subprocess.run("git add .", shell=True, cwd=self.working_dir)
-            subprocess.run(f'git commit -m "{msg}"', shell=True, cwd=self.working_dir)
-            subprocess.run("git push origin main", shell=True, cwd=self.working_dir)
+            for cmd in ["git add .", f'git commit -m "{msg}"', "git push origin main"]:
+                subprocess.run(cmd, shell=True, cwd=self.working_dir)
             self.after(0, lambda: (self.append_chat("SYSTEM", "GitHub Sync Complete."), self.toggle_thinking(False)))
 
         threading.Thread(target=run, daemon=True).start()
@@ -122,11 +120,15 @@ class JarvisGUI(ctk.CTk):
 
     def get_bot_response(self, user_text):
         self.after(0, lambda: self.toggle_thinking(True))
+
+        # Добавляем скрытую инструкцию для краткости
+        prompt = f"Действуй максимально кратко. Если я прошу создать проект, используй настройки по умолчанию. {user_text}"
+
         try:
             env = os.environ.copy()
             env["PYTHONIOENCODING"] = "utf-8"
             process = subprocess.Popen(
-                f'nanobot agent -m "{user_text}"',
+                f'nanobot agent -m "{prompt}"',
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 shell=True, cwd=self.working_dir, text=True,
                 encoding='utf-8', errors='replace', env=env,
@@ -134,9 +136,9 @@ class JarvisGUI(ctk.CTk):
             )
             for line in iter(process.stdout.readline, ''):
                 line_clean = line.strip()
-                # ФИЛЬТР: Пропускаем технические логи nanobot
                 if not line_clean: continue
-                if any(x in line_clean for x in ["DEBUG", "INFO", "Executing tool", "[32m"]):
+                # Фильтруем системный мусор
+                if any(x in line_clean for x in ["DEBUG", "INFO", "Executing tool", "[3"]):
                     continue
 
                 self.after(0, lambda l=line_clean: self.append_chat("JARVIS", l))
@@ -150,7 +152,7 @@ class JarvisGUI(ctk.CTk):
         path = os.path.join(shot_dir, f"shot_{datetime.now().strftime('%H%M%S')}.png")
         self.iconify()
         self.after(500, lambda: (pyautogui.screenshot(path), self.deiconify(),
-                                 self.append_chat("SYSTEM", "Скриншот в базе.")))
+                                 self.append_chat("SYSTEM", "Скриншот готов.")))
 
 
 if __name__ == "__main__":
