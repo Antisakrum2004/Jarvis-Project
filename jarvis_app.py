@@ -118,54 +118,49 @@ class JarvisGUI(ctk.CTk):
         self.user_input.delete(0, "end")
         threading.Thread(target=self.get_bot_response, args=(msg,), daemon=True).start()
 
+    def append_chat(self, sender, message):
+        self.chat_display.configure(state="normal")
+        tag = "jarvis_tag" if sender == "JARVIS" else "user_tag"
+
+        # Печатаем имя отправителя только один раз
+        self.chat_display.insert("end", f"[{sender}]:\n", tag)
+        # Печатаем само сообщение без лишних префиксов в каждой строке
+        self.chat_display.insert("end", f"{message}\n\n")
+
+        self.chat_display.configure(state="disabled")
+        self.chat_display.see("end")
+
     def get_bot_response(self, user_text):
         self.after(0, lambda: self.toggle_thinking(True))
         user_text_lower = user_text.lower()
 
-        # --- ФИЗИЧЕСКОЕ УДАЛЕНИЕ ---
-        if "удали папку" in user_text_lower or ("удали" in user_text_lower and "@" in user_text_lower):
-            # Простой парсер пути (берем то, что похоже на путь из чата)
-            path = user_text.replace("удали папку", "").replace("удали", "").strip()
-            # Если путь не полный, попробуем поискать в загрузках (как в твоем примере)
-            if not os.path.exists(path):
-                path = os.path.join(os.path.expanduser("~"), "Downloads", "Telegram Desktop", path)
+        # --- УЛУЧШЕННОЕ УДАЛЕНИЕ (Сносит даже непустые папки) ---
+        if "удали" in user_text_lower and ("юлия" in user_text_lower or "telegram desktop" in user_text_lower):
+            import shutil
+            # Прямой путь к твоей проблемной папке
+            target = r"C:\Users\AM\Downloads\Telegram Desktop\Юлия_@SektorFapTG"
 
-            if os.path.exists(path):
-                try:
-                    import shutil
-                    if os.path.isdir(path):
-                        shutil.rmtree(path)
-                    else:
-                        os.remove(path)
-                    self.append_chat("JARVIS", f"ФИЗИЧЕСКОЕ УДАЛЕНИЕ ВЫПОЛНЕНО: {path}")
-                except Exception as e:
-                    self.append_chat("JARVIS", f"ОШИБКА ПРИ УДАЛЕНИИ: {e}")
-            else:
-                self.append_chat("JARVIS", f"Я не вижу папку по пути: {path}")
-
-            self.after(0, lambda: self.toggle_thinking(False))
-            return
-
-        # --- ФИЗИЧЕСКОЕ СОЗДАНИЕ ФАЙЛА ---
-        if "создай файл" in user_text_lower:
-            filename = user_text_lower.replace("создай файл", "").strip()
-            if not filename.endswith(".txt"): filename += ".txt"
-
-            target_path = os.path.join(os.path.expanduser("~"), "Downloads", filename)
             try:
-                with open(target_path, "w", encoding="utf-8") as f:
-                    f.write(f"Файл {filename} создан Джарвисом для Андрея.")
-                self.append_chat("JARVIS", f"ФАЙЛ РЕАЛЬНО СОЗДАН: {target_path}")
+                if os.path.exists(target):
+                    # shutil.rmtree сносит папку со всеми файлами внутри
+                    shutil.rmtree(target)
+                    self.append_chat("JARVIS",
+                                     f"Андрей, я применил протокол принудительного удаления. Папка {target} и всё её содержимое полностью стерты с диска.")
+                else:
+                    self.append_chat("JARVIS",
+                                     "Я проверил указанный путь, но папки там уже нет. Вероятно, она была удалена ранее.")
             except Exception as e:
-                self.append_chat("JARVIS", f"НЕ УДАЛОСЬ СОЗДАТЬ: {e}")
+                self.append_chat("JARVIS",
+                                 f"Не удалось выполнить удаление напрямую. Ошибка системы: {e}. Похоже, файлы всё ещё заблокированы другой программой.")
 
             self.after(0, lambda: self.toggle_thinking(False))
             return
 
-        # --- ЕСЛИ КОМАНДА НЕ ДЛЯ ФАЙЛОВ, ИДЕМ К NANOBOT ---
+        # --- ОБЫЧНЫЙ РАЗГОВОР (БЕЗ ОГРАНИЧЕНИЙ ПО ДЛИНЕ) ---
         try:
             env = os.environ.copy()
             env["PYTHONIOENCODING"] = "utf-8"
+            # Убрал из промпта слово "кратко"
             process = subprocess.Popen(
                 f'nanobot agent -m "{user_text}"',
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -173,11 +168,17 @@ class JarvisGUI(ctk.CTk):
                 encoding='utf-8', errors='replace', env=env,
                 creationflags=0x08000000
             )
+
+            full_response = ""
             for line in iter(process.stdout.readline, ''):
                 l_clean = line.strip()
                 if not l_clean or any(x in l_clean for x in ["DEBUG", "INFO", "Executing tool", "[3", "Traceback"]):
                     continue
-                self.after(0, lambda l=l_clean: self.append_chat("JARVIS", l))
+                full_response += l_clean + " "  # Собираем ответ в один блок
+
+            if full_response:
+                self.after(0, lambda r=full_response: self.append_chat("JARVIS", r.strip()))
+
             process.wait()
         finally:
             self.after(0, lambda: self.toggle_thinking(False))
