@@ -120,38 +120,49 @@ class JarvisGUI(ctk.CTk):
 
     def get_bot_response(self, user_text):
         self.after(0, lambda: self.toggle_thinking(True))
+        user_text_lower = user_text.lower()
 
-        # --- ФИЧА №9: ЛОКАЛЬНЫЙ ПОИСК ---
-        if "найди файл" in user_text.lower() or "поиск файла" in user_text.lower():
-            filename = user_text.lower().replace("найди файл", "").replace("поиск файла", "").strip()
-            self.append_chat("JARVIS", f"Запускаю поиск файла: {filename}...")
+        # --- ФИЗИЧЕСКОЕ УДАЛЕНИЕ ---
+        if "удали папку" in user_text_lower or ("удали" in user_text_lower and "@" in user_text_lower):
+            # Простой парсер пути (берем то, что похоже на путь из чата)
+            path = user_text.replace("удали папку", "").replace("удали", "").strip()
+            # Если путь не полный, попробуем поискать в загрузках (как в твоем примере)
+            if not os.path.exists(path):
+                path = os.path.join(os.path.expanduser("~"), "Downloads", "Telegram Desktop", path)
 
-            def search():
-                results = []
-                # Ищем в основных папках пользователя, чтобы не сканировать весь диск С полгода
-                search_paths = [
-                    os.path.join(os.path.expanduser("~"), "Downloads"),
-                    os.path.join(os.path.expanduser("~"), "Documents"),
-                    os.path.join(os.path.expanduser("~"), "Desktop")
-                ]
-                for path in search_paths:
-                    for root, dirs, files in os.walk(path):
-                        for file in files:
-                            if filename in file.lower():
-                                results.append(os.path.join(root, file))
+            if os.path.exists(path):
+                try:
+                    import shutil
+                    if os.path.isdir(path):
+                        shutil.rmtree(path)
+                    else:
+                        os.remove(path)
+                    self.append_chat("JARVIS", f"ФИЗИЧЕСКОЕ УДАЛЕНИЕ ВЫПОЛНЕНО: {path}")
+                except Exception as e:
+                    self.append_chat("JARVIS", f"ОШИБКА ПРИ УДАЛЕНИИ: {e}")
+            else:
+                self.append_chat("JARVIS", f"Я не вижу папку по пути: {path}")
 
-                if results:
-                    res_str = "\n".join(results[:5])  # Показываем первые 5 находок
-                    self.after(0, lambda: self.append_chat("JARVIS", f"Вот что я нашел:\n{res_str}"))
-                else:
-                    self.after(0, lambda: self.append_chat("JARVIS", "Файл не найден, Андрей."))
-                self.after(0, lambda: self.toggle_thinking(False))
-
-            threading.Thread(target=search, daemon=True).start()
+            self.after(0, lambda: self.toggle_thinking(False))
             return
-        # --- КОНЕЦ ФИЧИ №9 ---
 
-        # Дальше идет обычный вызов nanobot...
+        # --- ФИЗИЧЕСКОЕ СОЗДАНИЕ ФАЙЛА ---
+        if "создай файл" in user_text_lower:
+            filename = user_text_lower.replace("создай файл", "").strip()
+            if not filename.endswith(".txt"): filename += ".txt"
+
+            target_path = os.path.join(os.path.expanduser("~"), "Downloads", filename)
+            try:
+                with open(target_path, "w", encoding="utf-8") as f:
+                    f.write(f"Файл {filename} создан Джарвисом для Андрея.")
+                self.append_chat("JARVIS", f"ФАЙЛ РЕАЛЬНО СОЗДАН: {target_path}")
+            except Exception as e:
+                self.append_chat("JARVIS", f"НЕ УДАЛОСЬ СОЗДАТЬ: {e}")
+
+            self.after(0, lambda: self.toggle_thinking(False))
+            return
+
+        # --- ЕСЛИ КОМАНДА НЕ ДЛЯ ФАЙЛОВ, ИДЕМ К NANOBOT ---
         try:
             env = os.environ.copy()
             env["PYTHONIOENCODING"] = "utf-8"
@@ -164,8 +175,7 @@ class JarvisGUI(ctk.CTk):
             )
             for line in iter(process.stdout.readline, ''):
                 l_clean = line.strip()
-                if not l_clean or any(x in l_clean for x in
-                                      ["DEBUG", "INFO", "Executing tool", "[3", "Traceback", "File \"", "ValueError"]):
+                if not l_clean or any(x in l_clean for x in ["DEBUG", "INFO", "Executing tool", "[3", "Traceback"]):
                     continue
                 self.after(0, lambda l=l_clean: self.append_chat("JARVIS", l))
             process.wait()
